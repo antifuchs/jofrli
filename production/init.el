@@ -1,5 +1,4 @@
 (require 'cl)
-(require 'slime)
 
 ;;; elisp setup
 
@@ -20,6 +19,7 @@
 ;;; CL setup
 
 (load (expand-file-name "/opt/lisp/ql/quicklisp/slime-helper.el"))
+(require 'slime)
 
 ;;; RET on the REPL: Only send lines when at end of expression,
 ;;; newline and indent otherwise.
