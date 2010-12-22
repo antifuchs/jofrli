@@ -15,9 +15,8 @@
     (call-next-method)))
 
 (defun extract-hash (request-uri)
-  (let* ((uri (puri:parse-uri request-uri))
-         (path (puri:uri-parsed-path uri)))
-    (car (last path))))
+  (let ((uri (puri:parse-uri request-uri)))
+    (subseq (puri:uri-path uri) 1)))
 
 (defun dispatch-redirection (request)
   (let* ((hash (extract-hash (hunchentoot:request-uri request))))
