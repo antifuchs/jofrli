@@ -2,7 +2,7 @@
 
 (in-package #:jofrli)
 
-(defparameter *chars* "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-%&/=+_~@")
+(defparameter *chars* "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-x&/=y_~@")
 (defparameter *max-fill* 0.6)
 (defparameter *initial-min-length* 2)
 
@@ -52,10 +52,15 @@
 (defun serialize-using-base (the-value base-chars)
   (with-output-to-string (s)
     (loop with base = (length base-chars)
+          with last-digit = nil
           for value = the-value then (truncate value base)
-          for current-digit = (rem value base)
+          for index =  (rem value base)
+          for current-digit = (aref base-chars index)
           until (zerop value)
-          do (write-char (aref base-chars current-digit) s))))
+          do (when (eql current-digit last-digit)
+               (setf current-digit (aref base-chars (1+ index))))
+          do (setf last-digit current-digit)
+          do (write-char current-digit s))))
 
 (defun hash-url (url &optional (rehash 0))
   "Returns a possible ID value for URL"
