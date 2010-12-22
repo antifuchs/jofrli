@@ -25,6 +25,9 @@
                (sleep 1) ; this must be the worst rate-limiting scheme, ever.
                "NO FILEY."))
       (cond
+        ((zerop (length hash))
+         (hunchentoot:redirect "http://api.jofr.li/" :code hunchentoot:+http-moved-permanently+)
+         (hunchentoot:send-headers))
         (hash
          (if-let ((url (redirect-to-url hash)))
            (progn (hunchentoot:redirect url :code hunchentoot:+http-moved-permanently+)
