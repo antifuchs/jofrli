@@ -6,7 +6,7 @@
 (defvar *swank-port* 7817)
 
 (load "/opt/lisp/ql/quicklisp/setup.lisp")
-(push (merge-pathnames #P"../" *load-truename*))
+(push (merge-pathnames #P"../" *load-truename*) asdf:*central-registry*)
 
 (ql:quickload :swank)
 (ql:quickload :jofrli)
