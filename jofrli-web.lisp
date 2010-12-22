@@ -56,5 +56,7 @@
                          (:input :type "text"
                                  :name "api-key")
                          (:input :type "submit" :name "Shorten"))
-                  (:p "(Authorized users only, please)")))
+                  (:p "(Authorized users only, please)")
+                  (:a :href "http://github.com/antifuchs/jofrli"
+                      "(source code)")))
     (values)))
