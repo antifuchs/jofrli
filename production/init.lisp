@@ -15,4 +15,4 @@
 (let ((swank::*loopback-interface* "10.0.9.1"))
   (swank:create-server :port *swank-port* :dont-close t))
 
-(print (jofrli:run-server))
+(print (jofrli:start))
