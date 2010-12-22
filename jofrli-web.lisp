@@ -5,9 +5,9 @@
 (defclass jofrli-acceptor (hunchentoot:acceptor)
      ())
 
-(defun start (&key (api-port 6969) (redirect-port 6970))
-  (hunchentoot:start (make-instance 'jofrli-acceptor :port api-port))
-  (hunchentoot:start (make-instance 'jofrli-acceptor :port redirect-port
+(defun start (&key (api-port 6969) (redirect-port 6970) (host nil))
+  (hunchentoot:start (make-instance 'jofrli-acceptor :port api-port :address host))
+  (hunchentoot:start (make-instance 'jofrli-acceptor :port redirect-port :address host
                                     :request-dispatcher 'dispatch-redirection)))
 
 (defmethod hunchentoot:handle-request :around ((acceptor jofrli-acceptor) request)
