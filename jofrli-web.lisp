@@ -37,12 +37,13 @@
          (send-404))))))
 
 (hunchentoot:define-easy-handler (shorten :uri "/shorten") (api-key url)
-  (format *debug-io* "key: ~a, url: ~a~%" api-key url)
-  (setf (hunchentoot:content-type*) "text/plain")    
+  (setf (hunchentoot:content-type*) "text/plain; charset=utf-8")    
   (cond
     ((authorized-p api-key)
-     (let ((hash (intern-url url)))
-       (puri:render-uri (puri:merge-uris hash *base-url*) nil)))
+     (let* ((hash (intern-url url))
+            (id (puri:render-uri (puri:merge-uris hash *base-url*) nil)))
+       ;; (format *debug-io* "key: ~a, url: ~a => ~a~%" api-key url id)
+       (write-sequence (babel:string-to-octets id :encoding :utf-8) (hunchentoot:send-headers))))
     (t
      (setf (hunchentoot:return-code*) 403))))
 
