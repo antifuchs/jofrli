@@ -41,14 +41,8 @@
   (redis:incr :min_length)
   (redis:set :current_count_at_length 0))
 
-(defun encode-id (id)
-  (prin1-to-string (coerce (flexi-streams:string-to-octets id :external-format :utf-8) 'list)))
-
-(defun decode-id (id)
-  (flexi-streams:octets-to-string (coerce (read-from-string id) 'vector) :external-format :utf-8))
-
 (defun find-url (id)
-  (redis:hget "url" (encode-id id)))
+  (redis:hget "url" id))
 
 (defun collision-p (id url)
   (let ((current-value (find-url id)))
@@ -61,8 +55,8 @@
 
 (defun store-url (id url normalized-url)
   (assert (null (nth-value 1 (collision-p id url))))
-  (redis:hset "url" (encode-id id) url)
-  (redis:hset "hashed-urls" normalized-url (encode-id id))
+  (redis:hset "url" id url)
+  (redis:hset "hashed-urls" normalized-url id)
   (redis:ltrim (visit-key id) 0 0)
   (redis:incrby :current_count_at_length 1)
   (redis:save)
@@ -94,7 +88,7 @@
 (defun intern-url (url)
   (let ((normalized-url (puri:render-uri (puri:parse-uri url) nil)))
     (when-let ((previously (redis:hget "hashed-urls" normalized-url)))
-      (return-from intern-url (decode-id previously)))
+      (return-from intern-url previously))
     (loop for rehash from 0
           for hash = (hash-url url rehash)
           when (not (collision-p hash url))
