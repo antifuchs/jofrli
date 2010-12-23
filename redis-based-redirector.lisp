@@ -9,12 +9,7 @@
                                     "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-x&z=y_~@"
                                     (unicode-range 9728 9906)   ; misc symbols
                                     (unicode-range 9632 9727)   ; geometric shapes
-                                    (unicode-range 9600 9631)   ; block elements
-                                    (unicode-range 8448 8527)   ; letterlike symbols
-                                    (unicode-range 10176 10219) ; miscellaneous mathematical symbols
-                                    (unicode-range 8592 8703)   ; arrows
-                                    (unicode-range 8704 8959)   ; mathematical operators
-                                    (unicode-range 10240 10495) ; braille patterns
+                                    (unicode-range 8592 8703)   ; arrows 
                                     )))
 
 (defparameter *max-fill* 0.6)
