@@ -16,7 +16,11 @@
 
 (defun extract-hash (request-uri)
   (let ((uri (puri:parse-uri request-uri)))
-    (subseq (puri:uri-path uri) 1)))
+    ;; ok, this is horrible: Since we send unicode chars, and http
+    ;; paths come back from hunchentoot decoded as latin-1, we convert
+    ;; to octets, then re-decode as utf-8.
+    (babel:octets-to-string (babel:string-to-octets (subseq (puri:uri-path uri) 1) :encoding :latin-1)
+                            :encoding :utf-8)))
 
 (defun dispatch-redirection (request)
   (let* ((hash (extract-hash (hunchentoot:request-uri request))))

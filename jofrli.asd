@@ -2,7 +2,7 @@
 
 (asdf:defsystem #:jofrli
   :serial t
-  :depends-on (#:cl-redis
+  :depends-on (#:lredis
                #:hunchentoot
                #:md5
                #:alexandria

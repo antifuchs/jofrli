@@ -2,16 +2,28 @@
 
 (in-package #:jofrli)
 
-(defparameter *chars* "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-x&/=y_~@")
+(labels ((unicode-range (low high)
+           (loop for i from low to high
+                 collect (code-char i))))
+ (defparameter *chars* (concatenate 'string
+                                    "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-x&z=y_~@"
+                                    (unicode-range 9728 9906)   ; misc symbols
+                                    (unicode-range 9632 9727)   ; geometric shapes
+                                    (unicode-range 9600 9631)   ; block elements
+                                    (unicode-range 8448 8527)   ; letterlike symbols
+                                    (unicode-range 10176 10219) ; miscellaneous mathematical symbols
+                                    (unicode-range 8592 8703)   ; arrows
+                                    (unicode-range 8704 8959)   ; mathematical operators
+                                    (unicode-range 10240 10495) ; braille patterns
+                                    )))
+
 (defparameter *max-fill* 0.6)
 (defparameter *initial-min-length* 2)
 
-(defvar *secret* "")
-
 (defun redis-get-integer-or-initialize (name default)
-  (or (when-let ((value (redis:red-get name)))
+  (or (when-let ((value (redis:get name)))
         (parse-integer value))
-      (redis:red-incrby name default)))
+      (redis:incrby name default)))
 
 (defun minimum-length ()
   (redis-get-integer-or-initialize :min_length *initial-min-length*))
@@ -26,11 +38,17 @@
         (/ (max-count-at-length) current-count))))
 
 (defun increment-min-count ()
-  (redis:red-incr :min_length)
-  (redis:red-set :current_count_at_length 0))
+  (redis:incr :min_length)
+  (redis:set :current_count_at_length 0))
+
+(defun encode-id (id)
+  (prin1-to-string (coerce (flexi-streams:string-to-octets id :external-format :utf-8) 'list)))
+
+(defun decode-id (id)
+  (flexi-streams:octets-to-string (coerce (read-from-string id) 'vector) :external-format :utf-8))
 
 (defun find-url (id)
-  (redis:red-hget "url" id))
+  (redis:hget "url" (encode-id id)))
 
 (defun collision-p (id url)
   (let ((current-value (find-url id)))
@@ -41,12 +59,13 @@
 (defun visit-key (id)
   (format nil "visits/~a" id))
 
-(defun store-url (id url)
+(defun store-url (id url normalized-url)
   (assert (null (nth-value 1 (collision-p id url))))
-  (redis:red-hset "url" id url)
-  (redis:red-ltrim (visit-key id) 0 0)
-  (redis:red-incrby :current_count_at_length 1)
-  (redis:red-save)
+  (redis:hset "url" (encode-id id) url)
+  (redis:hset "hashed-urls" normalized-url (encode-id id))
+  (redis:ltrim (visit-key id) 0 0)
+  (redis:incrby :current_count_at_length 1)
+  (redis:save)
   id)
 
 (defun serialize-using-base (the-value base-chars)
@@ -68,37 +87,40 @@
                                       url
                                       (format nil "~a#~a" url rehash))))
          (hash (md5:md5sum-sequence (puri:render-uri the-url nil)))
-         ;; Note: we use MD5 only to disambiguate. Could just have hashed things myself.
-         (stupid-repr (reduce (lambda (val aggregate) (+ val (* 255 aggregate))) hash))
-         (hash-value (rem stupid-repr (max-count-at-length))))
+         (hash-as-a-number (reduce (lambda (val aggregate) (+ val (* 255 aggregate))) hash))
+         (hash-value (rem hash-as-a-number (max-count-at-length))))
     (serialize-using-base hash-value *chars*)))
 
 (defun intern-url (url)
-  (loop for rehash from 0
-        for hash = (hash-url url rehash)
-        when (not (collision-p hash url))
-        do (multiple-value-bind (collisionp found-url) (collision-p hash url)
-             (cond
-               ((and (not collisionp) (null found-url))
-                (return (store-url hash url)))
-               ((not collisionp)
-                (return hash))))))
+  (let ((normalized-url (puri:render-uri (puri:parse-uri url) nil)))
+    (when-let ((previously (redis:hget "hashed-urls" normalized-url)))
+      (return-from intern-url (decode-id previously)))
+    (loop for rehash from 0
+          for hash = (hash-url url rehash)
+          when (not (collision-p hash url))
+            do (multiple-value-bind (collisionp found-url) (collision-p hash url)
+                 (cond
+                   ((and (not collisionp) (null found-url))
+                    (return (store-url hash url normalized-url)))
+                   ((not collisionp)
+                    (return hash)))))))
 
 (defun redirect-to-url (hash)
   (when-let ((url (find-url hash)))
-    (redis:red-lpush (visit-key hash) (prin1-to-string (get-universal-time)))
-    (redis:red-bgsave)
+    (redis:lpush (visit-key hash) (prin1-to-string (get-universal-time)))
+    (redis:bgsave)
     url))
 
 ;;; API authorization
 
 (defun authorized-p (authkey)
-  (redis:red-sismember "authorization" authkey))
+  (redis:sismember "authorization" authkey))
 
 (defun generate-authkey (&optional (secret ""))
-  ;; XXX: I am (obviously) not a cryptographer, and lazy. This is not
-  ;; an effective deterrent:
+  ;; XXX: I am (obviously) not a cryptographer, but I'm lazy. This is
+  ;; not an effective deterrent against somebody willing to guess your
+  ;; secret and your uuid pattern:
   (let ((authkey (ironclad:byte-array-to-hex-string
                   (md5:md5sum-sequence (format nil "~a-~a" secret (uuid:make-v1-uuid))))))
-    (redis:red-sadd "authorization" authkey)
+    (redis:sadd "authorization" authkey)
     authkey))
