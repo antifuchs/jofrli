@@ -8,7 +8,6 @@
  (defparameter *chars* (concatenate 'string
                                     "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-x&z=y_~@"
                                     (unicode-range 9728 9906)   ; misc symbols
-                                    (unicode-range 9632 9727)   ; geometric shapes
                                     (unicode-range 8592 8703)   ; arrows 
                                     )))
 
