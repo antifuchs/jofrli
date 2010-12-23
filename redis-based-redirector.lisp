@@ -2,13 +2,15 @@
 
 (in-package #:jofrli)
 
-(labels ((unicode-range (low high)
+(labels ((unicode-range (low high &rest sans)
            (loop for i from low to high
-                 collect (code-char i))))
+                 unless (member i sans)
+                   collect (code-char i))))
  (defparameter *chars* (concatenate 'string
-                                    "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-x&z=y_~@"
-                                    (unicode-range 9728 9906)   ; misc symbols
-                                    (unicode-range 8592 8703)   ; arrows 
+                                    "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-xzy"
+                                    (unicode-range 9728 9853     ; misc
+                                                   9748 9749 9752)
+                                      ; CJK unified ideographs
                                     )))
 
 (defparameter *max-fill* 0.6)
@@ -44,12 +46,43 @@
                  (not (string= url current-value)))
             (and current-value (puri:parse-uri current-value)))))
 
+(defun resolve-alias (alias)
+  (redis:hget "aliases" alias))
+
 (defun visit-key (id)
   (format nil "visits/~a" id))
+
+(define-condition invalid-encoding ()
+  ((idn-error :initarg :idn-error :accessor idn-error-of))
+  (:report (lambda (c s)
+             (format s "Can't IDN-encode: ~a" c))))
+
+#+sbcl
+(defun idn-encode (string)
+  (let* ((environment (sb-ext:posix-environ))
+         (idn  (let ((sb-impl::*default-external-format* :utf-8))
+                 (sb-ext:run-program "idn" `("--quiet" "--idna-to-ascii" "--usestd3asciirules" ,string)
+                                     :wait nil :output :stream :search t
+                                     :environment (adjoin "CHARSET=UTF-8" environment))))
+         (line (read-line (sb-ext:process-output idn) nil nil)))
+   (prog1 line
+          (sb-ext:process-wait idn)
+          (unless (zerop (sb-ext:process-exit-code idn))
+            (signal 'invalid-encoding :idn-error line)))))
+
+#-sbcl
+(warn "idn encoding requires SBCL!")
+#-sbcl
+(defun idn-encode (string)
+  (declare (ignore string))
+  nil)
 
 (defun store-url (id url normalized-url)
   (assert (null (nth-value 1 (collision-p id url))))
   (redis:hset "url" id url)
+  (when-let ((idn (idn-encode id)))
+    (unless (string= idn id)
+      (redis:hset "aliases" idn id)))
   (redis:hset "hashed-urls" normalized-url id)
   (redis:ltrim (visit-key id) 0 0)
   (redis:incrby :current_count_at_length 1)
@@ -86,12 +119,16 @@
     (loop for rehash from 0
           for hash = (hash-url url rehash)
           when (not (collision-p hash url))
-            do (multiple-value-bind (collisionp found-url) (collision-p hash url)
-                 (cond
-                   ((and (not collisionp) (null found-url))
-                    (return (store-url hash url normalized-url)))
-                   ((not collisionp)
-                    (return hash)))))))
+            do (catch 'rehash
+                 (handler-bind ((invalid-encoding (lambda (c)
+                                                    (declare (ignore c))
+                                                    (throw 'rehash nil))))
+                   (multiple-value-bind (collisionp found-url) (collision-p hash url)
+                     (cond
+                       ((and (not collisionp) (null found-url))
+                        (return (store-url hash url normalized-url)))
+                       ((not collisionp)
+                        (return hash)))))))))
 
 (defun redirect-to-url (hash)
   (when-let ((url (find-url hash)))
