@@ -7,7 +7,7 @@
                  unless (member i sans)
                    collect (code-char i))))
  (defparameter *chars* (concatenate 'string
-                                    "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-xzy"
+                                    "0123456789abcdefghijklmnopqrstuvwxyz-"
                                     (unicode-range 9728 9853     ; misc
                                                    9748 9749 9752)
                                       ; CJK unified ideographs
