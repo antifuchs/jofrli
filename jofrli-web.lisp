@@ -1,7 +1,7 @@
 (in-package #:jofrli)
 
 (defparameter *base-url* (puri:parse-uri "http://jofr.li/"))
-q
+
 (defclass jofrli-acceptor (hunchentoot:acceptor)
      ())
 
