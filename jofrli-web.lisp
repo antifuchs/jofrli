@@ -32,12 +32,12 @@
     (labels ((send-404 ()
                (setf (hunchentoot:return-code*) 404)
                (sleep 1) ; this must be the worst rate-limiting scheme, ever.
-               "NO FILEY."))
+               "NO FILY."))
       (cond
-        ((and (member hash '(nil "" "api" "shorten"))
+        ((and (member hash '(nil "" "api" "shorten") :test #'string=)
               (hunchentoot:dispatch-easy-handlers request))
          (funcall (hunchentoot:dispatch-easy-handlers request)))
-        (hash
+        ((not (zerop (length hash)))
          (if-let ((url (redirect-to-url hash)))
            (progn (hunchentoot:redirect url :code hunchentoot:+http-moved-permanently+)
                   (hunchentoot:send-headers))
