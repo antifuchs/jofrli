@@ -8,7 +8,8 @@
                #:alexandria
                #:puri
                #:uuid
-               #:cl-who)
+               #:cl-who
+               #:idna)
   :components ((:file "package")
                (:file "redis-based-redirector")
                (:file "jofrli-web")))

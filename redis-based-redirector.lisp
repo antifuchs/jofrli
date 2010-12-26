@@ -52,35 +52,10 @@
 (defun visit-key (id)
   (format nil "visits/~a" id))
 
-(define-condition invalid-encoding ()
-  ((idn-error :initarg :idn-error :accessor idn-error-of))
-  (:report (lambda (c s)
-             (format s "Can't IDN-encode: ~a" c))))
-
-#+sbcl
-(defun idn-encode (string)
-  (let* ((environment (sb-ext:posix-environ))
-         (idn  (let ((sb-impl::*default-external-format* :utf-8))
-                 (sb-ext:run-program "idn" `("--quiet" "--idna-to-ascii" "--usestd3asciirules" ,string)
-                                     :wait nil :output :stream :search t
-                                     :environment (adjoin "CHARSET=UTF-8" environment))))
-         (line (read-line (sb-ext:process-output idn) nil nil)))
-   (prog1 line
-          (sb-ext:process-wait idn)
-          (unless (zerop (sb-ext:process-exit-code idn))
-            (signal 'invalid-encoding :idn-error line)))))
-
-#-sbcl
-(warn "idn encoding requires SBCL!")
-#-sbcl
-(defun idn-encode (string)
-  (declare (ignore string))
-  nil)
-
 (defun store-url (id url normalized-url)
   (assert (null (nth-value 1 (collision-p id url))))
   (redis:hset "url" id url)
-  (when-let ((idn (idn-encode id)))
+  (when-let ((idn (idna:to-ascii id)))
     (unless (string= idn id)
       (redis:hset "aliases" idn id)))
   (redis:hset "hashed-urls" normalized-url id)
@@ -120,9 +95,9 @@
           for hash = (hash-url url rehash)
           when (not (collision-p hash url))
             do (catch 'rehash
-                 (handler-bind ((invalid-encoding (lambda (c)
-                                                    (declare (ignore c))
-                                                    (throw 'rehash nil))))
+                 (handler-bind ((error (lambda (c)
+                                         (declare (ignore c))
+                                         (throw 'rehash nil))))
                    (multiple-value-bind (collisionp found-url) (collision-p hash url)
                      (cond
                        ((and (not collisionp) (null found-url))
