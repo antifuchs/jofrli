@@ -9,8 +9,12 @@
 (push (make-pathname :name nil :type nil :defaults (merge-pathnames #P"../" *load-truename*))
       asdf:*central-registry*)
 
-; while lredis isn't in ql, do this:
+;; while lredis isn't in ql, do this:
 (push (merge-pathnames #p"thirdparty/lredis/" (user-homedir-pathname))
+      asdf:*central-registry*)
+
+;; same for idna:
+(push (merge-pathnames #p"thirdparty/idna/" (user-homedir-pathname))
       asdf:*central-registry*)
 
 (ql:quickload :swank)
