@@ -8,9 +8,14 @@
                    collect (code-char i))))
  (defparameter *chars* (concatenate 'string
                                     "0123456789abcdefghijklmnopqrstuvwxyz-"
-                                    (unicode-range 9728 9853     ; misc
-                                                   9748 9749 9752)
-                                      ; CJK unified ideographs
+                                    (unicode-range 9728 9853)     ; misc
+                                    (unicode-range 9632 9727)     ; geometric shapes
+                                    (unicode-range 8592 8703)     ; arrows
+                                    (unicode-range 9600 9631)     ; block elements
+                                    (unicode-range 8448 8527)     ; letterlike symbols
+                                    (unicode-range 10176 10219)   ; miscellaneous mathematical symbols
+                                    (unicode-range 8704 8959)     ; mathematical operators
+                                    (unicode-range 10240 10495)   ; braille patterns
                                     )))
 
 (defparameter *max-fill* 0.6)
