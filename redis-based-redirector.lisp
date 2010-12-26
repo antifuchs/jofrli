@@ -16,6 +16,10 @@
                                     (unicode-range 10176 10219)   ; miscellaneous mathematical symbols
                                     (unicode-range 8704 8959)     ; mathematical operators
                                     (unicode-range 10240 10495)   ; braille patterns
+                                    (unicode-range 8528 8591)     ; number forms (vulgar fractions, roman)
+                                    (unicode-range 128 255)       ; latin-1 supplement
+                                    (unicode-range 65104 65135)   ; small form variants (tiny ampersand!)
+                                    (unicode-range 9216 9279)     ; control pictures
                                     )))
 
 (defparameter *max-fill* 0.6)
