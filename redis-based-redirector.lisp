@@ -119,6 +119,16 @@
     (redis:bgsave)
     url))
 
+;;; Introspection
+
+(defun list-urls ()
+  (let ((idns (make-hash-table :test #'equal)))
+   (loop for (idn id) on (redis:hgetall "aliases") by #'cddr
+         do (setf (gethash id idns) idn))
+   (loop for (url id) on (redis:hgetall "hashed-urls") by #'cddr
+         for visits = (redis:llen (visit-key id))
+         collect (list :url url :id id :visits visits :idn (gethash id idns)))))
+
 ;;; API authorization
 
 (defun authorized-p (authkey)

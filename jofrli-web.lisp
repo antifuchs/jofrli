@@ -6,10 +6,10 @@
      ())
 
 (defun start (&key (redirect-port 6969) (host nil))
-  (hunchentoot:start (make-instance 'jofrli-acceptor :port redirect-port :address host
-                                    :request-dispatcher 'dispatch-redirection)))
+  (hunchentoot:start (make-instance 'jofrli-acceptor :port redirect-port :address host)))
 
 (defmethod hunchentoot:handle-request :around ((acceptor jofrli-acceptor) request)
+  (declare (ignore request))
   (redis:with-connection ()
     (call-next-method)))
 
@@ -27,7 +27,7 @@
           (babel:octets-to-string (babel:string-to-octets (subseq (puri:uri-path uri) 1) :encoding :latin-1)
                                   :encoding :utf-8)))))
 
-(defun dispatch-redirection (request)
+(defmethod hunchentoot:acceptor-dispatch-request ((acceptor jofrli-acceptor) request)
   (let* ((hash (extract-hash (hunchentoot:host) (hunchentoot:request-uri*))))
     (labels ((send-404 ()
                (setf (hunchentoot:return-code*) 404)
@@ -48,7 +48,7 @@
   (format nil "~@[~a.~]~a~@[:~A~]" id (puri:uri-host *base-url*) (puri:uri-port *base-url*)))
 
 (hunchentoot:define-easy-handler (shorten :uri "/shorten") (api-key url)
-  (setf (hunchentoot:content-type*) "text/plain; charset=utf-8")    
+  (setf (hunchentoot:content-type*) "text/plain; charset=utf-8")
   (cond
     ((authorized-p api-key)
      (let* ((hash (intern-url url)))
@@ -74,3 +74,20 @@
                   (:a :href "http://github.com/antifuchs/jofrli"
                       "(source code)")))
     (values)))
+
+(hunchentoot:define-easy-handler (list-url-handler :uri "/list") (api-key)
+  (unless (authorized-p api-key)
+    (setf (hunchentoot:return-code*) 404)
+    (return-from list-url-handler nil))
+  (With-html-output-to-string (s)
+    (:html (:head (:title "Jo Frly: URLs"))
+           (:body
+            (:table
+             (:tr (:th "ID") (:th "URL") (:th "ToAscii") (:th "visits"))
+             (dolist (urlspec (sort (list-urls) #'> :key (lambda (spec) (getf spec :visits))))
+               (destructuring-bind (&key url id visits idn &allow-other-keys) urlspec
+                 (htm
+                  (:tr (:td (str id))
+                       (:td (str url))
+                       (:td (str idn))
+                       (:td (str visits)))))))))))
